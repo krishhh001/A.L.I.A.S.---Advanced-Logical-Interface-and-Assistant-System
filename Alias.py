@@ -30,10 +30,8 @@ NEWSAPI_KEY = os.getenv("NEWSAPI_KEY", "")
 USER_COUNTRY = os.getenv("NEWS_COUNTRY", "us")
 
 if not GEMINI_API_KEY:
-    raise ValueError(
-        "❌ Gemini API key is missing!\n"
-        "Please create a .env file in your project folder with:\n"
-        "GEMINI_API_KEY=your_actual_key_here"
+    print(
+        "Gemini API key is missing. Set GEMINI_API_KEY in your .env to enable AI responses."
     )
 
 def gemini_chat(prompt, max_retries: int = 3, timeout: int = 15):
@@ -118,7 +116,7 @@ def stop_speaking():
 # ==== NEW IMPORTS FOR PDF/FILES/CAMERA/EMAIL ====
 import tempfile
 import docx2txt
-from PyPDF2 import PdfReader
+from pypdf import PdfReader
 import cv2
 import base64
 import imaplib
@@ -185,7 +183,7 @@ def read_text_from_file(file_path):
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 return f.read()
         if lower.endswith(".pdf"):
-            from PyPDF2 import PdfReader
+            from pypdf import PdfReader
             reader = PdfReader(file_path)
             texts = []
             for page in reader.pages:
@@ -481,16 +479,64 @@ def solve_math(command):
 
 # ==== CODE GENERATOR ====
 def generate_code(command):
-    prompt = f"Write a Python program to {command.replace('code', '').replace('program', '').strip()}"
     try:
+        target = (
+            command.lower()
+            .replace("generate", "")
+            .replace("create", "")
+            .replace("write", "")
+            .replace("code", "")
+            .replace("program", "")
+            .strip()
+        )
+        lower = command.lower()
+        language = "python"
+        language_map = [
+            ("typescript", ["typescript", "ts ", " in ts", " ts code"]),
+            ("javascript", ["javascript", "node", "js ", " in js", " js code"]),
+            ("powershell", ["powershell", "ps1", " power shell "]),
+            ("bash", ["bash", "shell", "sh ", " in sh", "terminal command", "linux command"]),
+            ("c", [" c code", " in c", "language c", " c program"]),
+            ("cpp", ["c++", "cpp", " in c++", " in cpp", " c plus plus "]),
+            ("java", [" java", " in java", " jdk "]),
+            ("csharp", ["c#", "csharp", " in c#", " dotnet ", " .net "]),
+            ("go", [" go ", " golang", " in go", " go code"]),
+            ("rust", [" rust", " in rust", " cargo "]),
+            ("swift", [" swift", " in swift", " xcode "]),
+            ("kotlin", [" kotlin", " in kotlin", " android kotlin "]),
+            ("php", [" php", " in php"]),
+            ("ruby", [" ruby", " in ruby", " rails "]),
+            ("sql", [" sql", "query to", "mysql ", "postgres ", "sqlite "]),
+            ("html", [" html", " in html"]),
+            ("css", [" css", " in css"]),
+            ("python", [" python", " in python", " py "]),
+        ]
+        for lang, keys in language_map:
+            if any(k in lower for k in keys):
+                language = lang
+                break
+
+        prompt = (
+            f"Write {language} code to {target}. "
+            f"Respond with ONLY a single fenced code block labeled {language}. "
+            f"No explanations. No prose. No comments."
+        )
+
         speak("Generating code, please wait.")
-        code = gemini_chat(prompt)
-        code = code.strip() if code else ""
-        speak("Here is the code:")
-        print("\n" + code)
+        response = gemini_chat(prompt) or ""
+        response = response.strip()
+
+        import re
+        match = re.search(r"```(?:[a-zA-Z0-9_+-]+)?\s*([\s\S]*?)```", response)
+        code_only = match.group(1).strip() if match else response
+
+        fenced = f"```{language}\n{code_only}\n```"
+        print("\n" + fenced)
+        return fenced
     except Exception as e:
         speak("Code generation failed.")
         print("[Gemini Code Error]", e)
+        return ""
 
 # ==== NEWS HELPERS ====
 
@@ -937,7 +983,7 @@ def show_startup_animation():
 def show_persistent_interface():
     """Show the Friday AI PyQt6 interface."""
     try:
-        from qt_friday_ui import show_friday_qt
+        from qt_Alias_ui import show_friday_qt
         print("Launching Friday AI PyQt6 interface...")
         show_friday_qt()
         return True
@@ -998,4 +1044,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
