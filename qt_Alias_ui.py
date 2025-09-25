@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QSplashScreen,
 )
 import sys
+import html
 import os
 import threading
 
@@ -27,13 +28,13 @@ from qt_backend import FridayBackend
 from qt_backend import set_tts_enabled
 from qt_backend import TTS_ENABLED
 try:
-    from friday import stop_speaking
+    from Alias import stop_speaking
 except Exception:
     def stop_speaking():
         pass
 try:
     # For identity check
-    from friday import eye_scan_gate
+    from Alias import eye_scan_gate
 except Exception:
     def eye_scan_gate():
         return True
@@ -86,10 +87,40 @@ class ChatBubble(QFrame):
         super().__init__()
         self.setFrameShape(QFrame.Shape.NoFrame)
         self.setObjectName("user" if is_user else "assistant")
-        label = QLabel(text)
-        label.setWordWrap(True)
         layout = QVBoxLayout(self)
-        layout.addWidget(label)
+
+        if not is_user and text.strip().startswith("```"):
+            import re
+            m = re.match(r"```([a-zA-Z0-9_+-]*)\n([\s\S]*?)\n```\s*$", text.strip())
+            if m:
+                lang = m.group(1) or "code"
+                code = m.group(2)
+                top = QHBoxLayout()
+                lang_label = QLabel(lang)
+                lang_label.setStyleSheet("color: #bfbfbf; font-weight: 600;")
+                copy_btn = QPushButton("Copy code")
+                copy_btn.setFixedHeight(24)
+                copy_btn.setStyleSheet("QPushButton{background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:4px 8px;} QPushButton:hover{border-color:#666}")
+                def do_copy():
+                    QApplication.clipboard().setText(code)
+                copy_btn.clicked.connect(do_copy)
+                top.addWidget(lang_label)
+                top.addStretch(1)
+                top.addWidget(copy_btn)
+                layout.addLayout(top)
+                code_label = QLabel(f"<pre>{html.escape(code)}</pre>")
+                code_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+                code_label.setStyleSheet("QLabel{background:#0b0b0b;border:1px solid #222;border-radius:8px;padding:10px;font-family:'Consolas','Cascadia Code',monospace;font-size:13px;color:#e6e6e6}")
+                layout.addWidget(code_label)
+            else:
+                label = QLabel(text)
+                label.setWordWrap(True)
+                layout.addWidget(label)
+        else:
+            label = QLabel(text)
+            label.setWordWrap(True)
+            layout.addWidget(label)
+
         self.setStyleSheet(
             """
             QFrame#user { background: #1a1a1a; border-radius: 12px; padding: 10px; }
@@ -417,5 +448,4 @@ def show_friday_qt():
 
 if __name__ == "__main__":
     sys.exit(show_friday_qt())
-
 
